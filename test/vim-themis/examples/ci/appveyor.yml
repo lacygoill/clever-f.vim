@@ -1,0 +1,34 @@
+version: '{build}'
+clone_depth: 1
+environment:
+  matrix:
+    - VIM_URL: http://vim-jp.org/redirects/koron/vim-kaoriya/latest/win64/
+    # To test with 8.2 official Vim binary, uncomment below line.
+    # - VIM_URL: https://github.com/vim/vim-win32-installer/releases/download/v8.2.0008/gvim_8.2.0008_x64.zip
+    # To test with latest official Vim binary, uncomment below line.
+    #- VIM_URL: http://vim-jp.org/redirects/vim/vim-win32-installer/latest/x64/
+install:
+- ps: |
+    $zip = $Env:APPVEYOR_BUILD_FOLDER + '\vim.zip'
+    $vim = $Env:APPVEYOR_BUILD_FOLDER + '\vim\'
+    $url = $Env:VIM_URL
+
+    if ($url.Contains("vim-jp.org/redirects"))
+    {
+      $redirect = Invoke-WebRequest -URI $Env:VIM_URL
+      $url = $redirect.Links[0].href
+    }
+    (New-Object Net.WebClient).DownloadFile($url, $zip)
+
+    [Reflection.Assembly]::LoadWithPartialName('System.IO.Compression.FileSystem') > $null
+    [System.IO.Compression.ZipFile]::ExtractToDirectory($zip, $vim)
+
+    $Env:THEMIS_VIM = (Get-ChildItem -r -Filter 'vim.exe' $vim).FullName
+
+    git -c advice.detachedHead=false clone https://github.com/thinca/vim-themis --quiet --branch v1.5.5 --single-branch --depth 1 $Env:TEMP\vim-themis
+build: off
+test_script:
+- ps: |
+    & $Env:THEMIS_VIM --version
+    & $Env:TEMP\vim-themis\bin\themis.bat --reporter dot
+deploy: off
